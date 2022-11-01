@@ -23,7 +23,7 @@ from dash import dcc, ctx
 from dash_extensions.enrich import DashProxy, html, Input, Output, MultiplexerTransform
 
 # Reading in images and separating them by rater
-image_dir = '/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/GlomAnnotationsAndCode/'
+image_dir ='/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/GlomAnnotationsAndCode/'
 annotators = os.listdir(image_dir)
 
 annotation_codes = {
@@ -64,7 +64,7 @@ for i, figure in enumerate(imgs_to_include):
 main_layout = html.Div([
     # Header
     html.Div([
-        html.H1('CellKappaVis: Analyzing agreement between multiple annotators')
+        html.H1('Analyzing agreement between multiple annotators')
     ]),
 
     # Where images will be displayed
@@ -108,30 +108,54 @@ main_layout = html.Div([
 
 
 class CellKappaVis:
-    def __init__(self,app,layout,img_dir,annotation_codes):
+    def __init__(self,app,layout,img_dir,annotation_codes, annotator_img_dict):
 
         self.app = app
         self.app.layout = layout
         self.img_dir = img_dir
         self.annotation_codes = annotation_codes
+        self.annotator_img_dict = annotator_img_dict
 
         self.app.callback(
             [Output('compare-images','figure'),Output('confusion-mat','figure')],
-            [Input('rater-1','value'),Input('rater-2','value')]
-        )(self.update_raters)
+            [Input('rater-1','value'),Input('rater-2','value'),Input('image-name','value')]
+        )(self.update_raters_image)
 
-        self.app.callback(
-            [Output('compare-images','figure'),Output('confusion-mat','figure')],
-            Input('image-name','value')
-        )(self.update_image)
+    def update_raters_image(self,rater_1,rater_2,img_name):
+        
+        # Images from both raters
+        image_1 = self.annotator_img_dict[rater_1][img_name]
+        image_2 = self.annotator_img_dict[rater_2][img_name]
+
+        new_img_figure = self.make_img_subplots(image_1,image_2, rater_1, rater_2)
+        conf_mat_placeholder = go.Figure()
+
+        return new_img_figure, conf_mat_placeholder
+
+    def make_img_subplots(self,image_1,image_2, rater_1, rater_2):
+        new_figure = make_subplots(rows=1,cols=2,subplot_titles = (f'Annotator 1: {rater_1}',f'Annotator 2: {rater_2}'))
+        imgs_to_include = [
+                            px.imshow(image_1),
+                            px.imshow(image_2)
+                            ]
+
+        for i, figure in enumerate(imgs_to_include):
+            if 'data' in figure:
+                for trace in range(len(figure['data'])):
+                    new_figure.append_trace(figure['data'][trace],row=1,col=i+1)
+            else:
+                new_figure.append_trace(figure,row=1,col=i+1)
+
+        return new_figure
 
 
-#if __name__ == '__main__':
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-main_app = DashProxy(__name__, external_stylesheets = external_stylesheets, transforms = [MultiplexerTransform()])
+if __name__ == '__main__':
 
-cell_kappa_vis_app = CellKappaVis(main_app, main_layout, image_dir, annotation_codes)
-cell_kappa_vis_app.app.run_server(debug=True)
+    external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+    main_app = DashProxy(__name__, external_stylesheets = external_stylesheets, transforms = [MultiplexerTransform()])
+
+    cell_kappa_vis_app = CellKappaVis(main_app, main_layout, image_dir, annotation_codes, annotator_img_dict)
+    cell_kappa_vis_app.app.run_server(debug=True)
 
 
