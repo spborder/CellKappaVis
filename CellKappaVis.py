@@ -23,7 +23,7 @@ from dash import dcc, ctx
 from dash_extensions.enrich import DashProxy, html, Input, Output, MultiplexerTransform
 
 # Reading in images and separating them by rater
-image_dir = os.getcwd()+'/GlomAnnotationsAndCode/'
+image_dir = '/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/GlomAnnotationsAndCode/'
 annotators = os.listdir(image_dir)
 
 annotation_codes = {
@@ -37,7 +37,7 @@ annotator_img_dict = {}
 for a in annotators:
     annotator_img_dict[a] = {}
 
-    ann_img_dir = image_dir+a+'/*.png'
+    ann_img_dir = image_dir+a+'/*.tif'
     imgs_annotated = []
     for img in glob(ann_img_dir):
         img_name = img.split(os.sep)[-1]
@@ -111,19 +111,27 @@ class CellKappaVis:
     def __init__(self,app,layout,img_dir,annotation_codes):
 
         self.app = app
-        self.layout = layout
+        self.app.layout = layout
         self.img_dir = img_dir
         self.annotation_codes = annotation_codes
-        
-        # 
+
         self.app.callback(
+            [Output('compare-images','figure'),Output('confusion-mat','figure')],
+            [Input('rater-1','value'),Input('rater-2','value')]
+        )(self.update_raters)
 
-        )
+        self.app.callback(
+            [Output('compare-images','figure'),Output('confusion-mat','figure')],
+            Input('image-name','value')
+        )(self.update_image)
 
 
+#if __name__ == '__main__':
 
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+main_app = DashProxy(__name__, external_stylesheets = external_stylesheets, transforms = [MultiplexerTransform()])
 
-
-
+cell_kappa_vis_app = CellKappaVis(main_app, main_layout, image_dir, annotation_codes)
+cell_kappa_vis_app.app.run_server(debug=True)
 
 
