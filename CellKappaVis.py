@@ -167,12 +167,16 @@ class CellKappaVis:
                         new_img_figure = go.Figure(px.imshow(image).data[0])
                         new_img_figure.update_layout(title=f'Only annotated by {rater_1}')
                     except:
-                        image = self.annotator_img_dict[rater_2][img_name]['Image']
-                        new_img_figure = go.Figure(px.imshow(image).data[0])
-                        new_img_figure.update_layout(title=f'Only annotated by {rater_2}')   
+                        try:
+                            image = self.annotator_img_dict[rater_2][img_name]['Image']
+                            new_img_figure = go.Figure(px.imshow(image).data[0])
+                            new_img_figure.update_layout(title=f'Only annotated by {rater_2}')   
+                        except:
+                            new_img_figure = go.Figure(px.imshow(np.zeros((200,200))))
+                            new_img_figure.update_layout(title = 'Not annotated by either rater')
             else:
                 # All images from both raters
-                overlap_image_list = list(set(list(self.annotator_img_dict[rater_1].keys()) & set(list(self.annotator_img_dict[rater_2].keys()))))
+                overlap_image_list = list(set(list(self.annotator_img_dict[rater_1].keys())) & set(list(self.annotator_img_dict[rater_2].keys())))
 
                 image_1 = self.annotator_img_dict[rater_1][overlap_image_list[0]]['Image']
                 image_2 = self.annotator_img_dict[rater_2][overlap_image_list[0]]['Image']
@@ -241,7 +245,7 @@ class CellKappaVis:
                             imgs_r1 = list(self.annotator_img_dict[r1].keys())
                             imgs_r2 = list(self.annotator_img_dict[r2].keys())
 
-                            overlap_list = list(set(imgs_r1)&set(imgs_r2))
+                            overlap_list = np.unique(list(set(imgs_r1)&set(imgs_r2)))
                             for img in overlap_list:
                                 new_conf_mat, new_kappa = self.generate_new_confusion_matrix(r1,r2,img)
                                 conf_mat_list.append(new_conf_mat)
