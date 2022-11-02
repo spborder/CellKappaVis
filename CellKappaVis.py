@@ -10,15 +10,21 @@ Some basic visualization implementation
 import os
 import sys
 import numpy as np
+import pandas as pd
 
 from glob import glob
 
 from PIL import Image
+import cv2
 
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from dash import dcc, ctx
+
+from skimage.measure import label,regionprops_table
+from scipy.spatial import cKDTree
+from sklearn.metrics import cohen_kappa_score, confusion_matrix
 
 from dash_extensions.enrich import DashProxy, html, Input, Output, MultiplexerTransform
 
@@ -27,10 +33,9 @@ image_dir ='/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/GlomAnnotationsAndCo
 annotators = os.listdir(image_dir)
 
 annotation_codes = {
-    'Mesangial':[],
-    'Endothelial':[],
-    'Podocyte':[],
-    'Unknown':[]
+    'Mesangial':{'light':(150,200,200),'dark':(180,255,255)},
+    'Endothelial':{'light':(30,100,0),'dark':(70,255,255)},
+    'Podocyte':{'light':(80,175,200),'dark':(120,180,215)},
 }
 
 annotator_img_dict = {}
@@ -41,11 +46,31 @@ for a in annotators:
     imgs_annotated = []
     for img in glob(ann_img_dir):
         img_name = img.split(os.sep)[-1]
-        annotator_img_dict[a][img_name] = Image.open(img)
+        annotator_img_dict[a][img_name] = {}
+        annotator_img_dict[a][img_name]['Image'] = np.array(Image.open(img))[:,:,0:3]
         imgs_annotated.append(img_name)
 
+        # Generating segmentations for each image
+        #hsv_img = np.array(annotator_img_dict[a][img_name]['Image'].convert('HSV'))
+        hsv_img = cv2.cvtColor(annotator_img_dict[a][img_name]['Image'],cv2.COLOR_RGB2HSV)
+        for cell in annotation_codes:
+            thresh_img = hsv_img.copy()
+
+            lower_bounds = annotation_codes[cell]['light']
+            upper_bounds = annotation_codes[cell]['dark']
+            thresh_img = cv2.inRange(thresh_img,lower_bounds, upper_bounds)
+
+            # Show segmented dots for each cell type
+            #fig = px.imshow(Image.fromarray(np.uint8(255*thresh_img)))
+            #fig.show()
+            object_centroids = pd.DataFrame(regionprops_table(label(thresh_img),properties=['centroid']))
+            object_centroids['Cell_Type'] = [cell]*object_centroids.shape[0]
+            annotator_img_dict[a][img_name][cell] = object_centroids
+
+        annotator_img_dict[a][img_name]['All_Cell_Types'] = pd.concat([annotator_img_dict[a][img_name][i] for i in annotation_codes],ignore_index=True)
+
 imgs_annotated = np.unique(imgs_annotated)
-initial_img = annotator_img_dict[annotators[0]][imgs_annotated[0]]
+initial_img = annotator_img_dict[annotators[0]][imgs_annotated[0]]['Image']
 
 initial_figure = make_subplots(rows=1,cols=2,subplot_titles = (f'Annotator 1: {annotators[0]}',f'Annotator 2: {annotators[0]}'))
 imgs_to_include = [
@@ -59,6 +84,15 @@ for i, figure in enumerate(imgs_to_include):
             initial_figure.append_trace(figure['data'][trace],row=1,col=i+1)
     else:
         initial_figure.append_trace(figure,row=1,col=i+1)
+
+
+# In this case, the centroids are stored in a dict format so 
+centroids_1 = annotator_img_dict[annotators[0]][imgs_annotated[0]]['All_Cell_Types']
+centroids_2 = annotator_img_dict[annotators[0]][imgs_annotated[0]]['All_Cell_Types']
+
+# KDTree search
+tree = cKDTree(centroids_1.values[:,0:2])
+distances, idxes = tree.query(centroids_2.values[:,0:2])
 
 
 main_layout = html.Div([
@@ -124,13 +158,25 @@ class CellKappaVis:
     def update_raters_image(self,rater_1,rater_2,img_name):
         
         # Images from both raters
-        image_1 = self.annotator_img_dict[rater_1][img_name]
-        image_2 = self.annotator_img_dict[rater_2][img_name]
+        image_1 = self.annotator_img_dict[rater_1][img_name]['Image']
+        image_2 = self.annotator_img_dict[rater_2][img_name]['Image']
 
         new_img_figure = self.make_img_subplots(image_1,image_2, rater_1, rater_2)
-        conf_mat_placeholder = go.Figure()
+        new_conf_mat, new_kappa = self.generate_new_confusion_matrix(rater_1,rater_2,img_name)
 
-        return new_img_figure, conf_mat_placeholder
+        x_axes_labels = [rater_1+'_'+i for i in self.annotation_codes]
+        y_axes_labels = [rater_2+'_'+i for i in self.annotation_codes]
+
+        # Constructing the confusion matrix with labeled axes and title
+        conf_mat_figure = go.Figure()
+        conf_img_data = px.imshow(new_conf_mat,x = x_axes_labels, y = y_axes_labels,text_auto=True,
+                        title=f'Kappa Score between {rater_1} and {rater_2} = {new_kappa}')
+                        
+        for trace in conf_img_data['data']:
+            conf_mat_figure.add_trace(trace)
+        conf_mat_figure.update_layout()
+
+        return new_img_figure, conf_mat_figure
 
     def make_img_subplots(self,image_1,image_2, rater_1, rater_2):
         new_figure = make_subplots(rows=1,cols=2,subplot_titles = (f'Annotator 1: {rater_1}',f'Annotator 2: {rater_2}'))
@@ -147,6 +193,25 @@ class CellKappaVis:
                 new_figure.append_trace(figure,row=1,col=i+1)
 
         return new_figure
+
+    def generate_new_confusion_matrix(self, rater_1, rater_2, image_name):
+        
+        # In this case, the centroids are stored in a dict format so 
+        centroids_1 = self.annotator_img_dict[rater_1][image_name]['All_Cell_Types']
+        centroids_2 = self.annotator_img_dict[rater_2][image_name]['All_Cell_Types']
+
+        # KDTree search
+        tree = cKDTree(centroids_1.values[:,0:2])
+        distances, idxes = tree.query(centroids_2.values[:,0:2])
+        include_idxes = idxes[distances<=15]
+        unscored_idxes = idxes[distances>15]
+
+        overlapping_cells = pd.DataFrame({rater_1:centroids_1.iloc[include_idxes,-1],rater_2:centroids_2.iloc[include_idxes,-1]})
+        
+        conf_mat = confusion_matrix(overlapping_cells[rater_1],overlapping_cells[rater_2])
+        kappa_score = cohen_kappa_score(overlapping_cells[rater_1],overlapping_cells[rater_2])
+
+        return conf_mat, kappa_score
 
 
 
