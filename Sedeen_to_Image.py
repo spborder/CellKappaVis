@@ -64,18 +64,12 @@ class SedeenImage:
             
             # For multiple types of annotations, one being just points and the other being actual shapes
             if len(point_list)>0:
-                if len(point_list)<3:
-                    ann_reg = []
-                    for p in point_list:
-                        point_poly = Point(int(float(point_list[0].text.split(',')[1])),int(float(point_list[0].text.split(',')[0])))
-                        point_poly = point_poly.buffer(5)
-                        ann_reg.append(point_poly)
-                else:
-                    coords = []
-                    for p in point_list:
-                        coords.append((int(float(p.text.split(',')[1])),int(float(p.text.split(',')[0]))))
-                    ann_reg = [Polygon(coords)]
-                
+                ann_reg = []
+                for p in point_list:
+                    point_poly = Point(int(float(p.text.split(',')[1])),int(float(p.text.split(',')[0])))
+                    point_poly = point_poly.buffer(5)
+                    ann_reg.append(point_poly)
+
                 # making polygon mask
                 reg_mask_3d = self.make_mask(ann_reg,[img_width,img_height],[reg_red,reg_green,reg_blue])
 
@@ -92,8 +86,9 @@ class SedeenImage:
         return og_img,rgba_mask
     
     def make_mask(self,polys,img_size,color_list):
+
+        reg_mask = np.zeros((img_size[1],img_size[0]))
         for p in polys:
-            reg_mask = np.zeros((img_size[1],img_size[0]))
             x_coords = [int(i[0]) for i in list(p.exterior.coords)]
             y_coords = [int(i[1]) for i in list(p.exterior.coords)]
             rr,cc = polygon(y_coords,x_coords,(img_size[1],img_size[0]))
