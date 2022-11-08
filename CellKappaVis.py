@@ -32,10 +32,17 @@ from dash_extensions.enrich import DashProxy, html, Input, Output, MultiplexerTr
 image_dir ='/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/GlomAnnotationsAndCode/'
 annotators = os.listdir(image_dir)
 
+"""
 annotation_codes = {
     'Mesangial':{'light':(150,200,200),'dark':(180,255,255)},
     'Endothelial':{'light':(30,100,0),'dark':(70,255,255)},
     'Podocyte':{'light':(80,175,200),'dark':(120,180,215)},
+}
+"""
+annotation_codes = {
+    'Mesangial':[255,0,0],
+    'Endothelial':[0,255,0],
+    'Podocyte':[0,0,255]
 }
 
 annotator_img_dict = {}
@@ -52,18 +59,25 @@ for a in annotators:
 
         # Generating segmentations for each image
         #hsv_img = np.array(annotator_img_dict[a][img_name]['Image'].convert('HSV'))
-        hsv_img = cv2.cvtColor(annotator_img_dict[a][img_name]['Image'],cv2.COLOR_RGB2HSV)
+        #hsv_img = cv2.cvtColor(annotator_img_dict[a][img_name]['Image'],cv2.COLOR_RGB2HSV)
         for cell in annotation_codes:
-            thresh_img = hsv_img.copy()
+            #thresh_img = hsv_img.copy()
 
-            lower_bounds = annotation_codes[cell]['light']
-            upper_bounds = annotation_codes[cell]['dark']
-            thresh_img = cv2.inRange(thresh_img,lower_bounds, upper_bounds)
+            #lower_bounds = annotation_codes[cell]['light']
+            #upper_bounds = annotation_codes[cell]['dark']
+            #thresh_img = cv2.inRange(thresh_img,lower_bounds, upper_bounds)
+            cell_color = annotation_codes[cell]
+            thresh_img = annotator_img_dict[a][img_name]['Image'].copy()
+            red_mask = thresh_img[:,:,0]==cell_color[0]
+            green_mask = thresh_img[:,:,1]==cell_color[1]
+            blue_mask = thresh_img[:,:,2]==cell_color[2]
+            cell_mask = red_mask&green_mask&blue_mask
 
             # Show segmented dots for each cell type
-            #fig = px.imshow(Image.fromarray(np.uint8(255*thresh_img)))
+            #fig = px.imshow(Image.fromarray(np.uint8(255*cell_mask)))
             #fig.show()
-            object_centroids = pd.DataFrame(regionprops_table(label(thresh_img),properties=['centroid']))
+            object_centroids = pd.DataFrame(regionprops_table(label(cell_mask),properties=['centroid','area']))
+            object_centroids = object_centroids[object_centroids['area']>1]
             object_centroids['Cell_Type'] = [cell]*object_centroids.shape[0]
             annotator_img_dict[a][img_name][cell] = object_centroids
 
@@ -149,7 +163,6 @@ class CellKappaVis:
 
     def update_raters_image(self,rater_1,rater_2,img_name):
         
-
         if not 'All' in [rater_1,rater_2]:
             # Comparing two specific raters
             new_conf_mat, new_kappa = self.generate_new_confusion_matrix(rater_1,rater_2,img_name)
