@@ -114,7 +114,7 @@ class SedeenImage:
 
 def main():
 
-    base_dir = 'C:\\Users\\Sam\\Desktop\\GlomAnnotationsAndCode\\JET annotations-Control\\Wk25\\'
+    base_dir = 'C:\\Users\\Sam\\Desktop\\GlomAnnotationsAndCode\\OriginalAnnotations\\JET annotations-Control\\Wk15\\'
     img_dir = base_dir
     session_dir = base_dir+'sedeen/'
     save_dir = base_dir+'Processed_Images/'

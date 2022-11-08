@@ -280,6 +280,9 @@ class CellKappaVis:
         for trace in conf_img_data['data']:
             conf_mat_figure.add_trace(trace)
 
+        if not type(new_kappa) == str:
+            new_kappa = round(new_kappa,3)
+            
         conf_mat_figure.update_layout(title=f'Kappa Score between {rater_1} and {rater_2} = {new_kappa}')
 
         return new_img_figure, conf_mat_figure
