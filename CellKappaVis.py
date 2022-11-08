@@ -58,14 +58,13 @@ for a in annotators:
         imgs_annotated.append(img_name)
 
         # Generating segmentations for each image
-        #hsv_img = np.array(annotator_img_dict[a][img_name]['Image'].convert('HSV'))
         #hsv_img = cv2.cvtColor(annotator_img_dict[a][img_name]['Image'],cv2.COLOR_RGB2HSV)
         for cell in annotation_codes:
             #thresh_img = hsv_img.copy()
 
             #lower_bounds = annotation_codes[cell]['light']
             #upper_bounds = annotation_codes[cell]['dark']
-            #thresh_img = cv2.inRange(thresh_img,lower_bounds, upper_bounds)
+            #cell_mask = cv2.inRange(thresh_img,lower_bounds,upper_bounds)
             cell_color = annotation_codes[cell]
             thresh_img = annotator_img_dict[a][img_name]['Image'].copy()
             red_mask = thresh_img[:,:,0]==cell_color[0]
@@ -98,8 +97,6 @@ for i, figure in enumerate(imgs_to_include):
             initial_figure.append_trace(figure['data'][trace],row=1,col=i+1)
     else:
         initial_figure.append_trace(figure,row=1,col=i+1)
-
-
 
 main_layout = html.Div([
     # Header
@@ -320,7 +317,6 @@ class CellKappaVis:
             include_idxes_2 = np.unique(idxes2[distances2<=15])
 
             # Now we have overlapping indices for both rater_1 and rater_2
-
             rater_1_overlap = pd.DataFrame({rater_1:centroids_1.iloc[include_idxes_1,-1]},index=include_idxes_1)
             rater_2_overlap = pd.DataFrame({rater_2:centroids_2.iloc[include_idxes_2,-1]},index=include_idxes_2)
 
