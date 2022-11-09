@@ -129,6 +129,12 @@ main_layout = html.Div([
                 annotators+['All'],
                 annotators[0],
                 id = 'rater-2'
+            ),
+            html.Br(),
+            dcc.RadioItems(
+                ['Include Unscored','Ignore Unscored'],
+                'Include Unscored',
+                id = 'inc-unscored'
             )
         ])
     ]),
@@ -153,13 +159,20 @@ class CellKappaVis:
         self.annotation_codes = annotation_codes
         self.annotator_img_dict = annotator_img_dict
 
+        self.include_unscored = True
+
         self.app.callback(
             [Output('compare-images','figure'),Output('confusion-mat','figure')],
-            [Input('rater-1','value'),Input('rater-2','value'),Input('image-name','value')]
+            [Input('rater-1','value'),Input('rater-2','value'),Input('image-name','value'),Input('inc-unscored','value')]
         )(self.update_raters_image)
 
-    def update_raters_image(self,rater_1,rater_2,img_name):
+    def update_raters_image(self,rater_1,rater_2,img_name,include_unscored):
         
+        if include_unscored=='Include Unscored':
+            self.include_unscored = True
+        else:
+            self.include_unscored = False
+
         if not 'All' in [rater_1,rater_2]:
             # Comparing two specific raters
             new_conf_mat, new_kappa = self.generate_new_confusion_matrix(rater_1,rater_2,img_name)
@@ -282,7 +295,7 @@ class CellKappaVis:
 
         if not type(new_kappa) == str:
             new_kappa = round(new_kappa,3)
-            
+
         conf_mat_figure.update_layout(title=f'Kappa Score between {rater_1} and {rater_2} = {new_kappa}')
 
         return new_img_figure, conf_mat_figure
@@ -323,7 +336,12 @@ class CellKappaVis:
             rater_1_overlap = pd.DataFrame({rater_1:centroids_1.iloc[include_idxes_1,-1]},index=include_idxes_1)
             rater_2_overlap = pd.DataFrame({rater_2:centroids_2.iloc[include_idxes_2,-1]},index=include_idxes_2)
 
-            overlapping_cells = pd.concat([rater_1_overlap,rater_2_overlap],axis=1).fillna('Unscored')
+            overlapping_cells = pd.concat([rater_1_overlap,rater_2_overlap],axis=1)
+
+            if not self.include_unscored:
+                overlapping_cells = overlapping_cells.dropna()
+            else:
+                overlapping_cells = overlapping_cells.fillna('Unscored')
 
             conf_mat = confusion_matrix(overlapping_cells.iloc[:,0],overlapping_cells.iloc[:,1])
             kappa_score = cohen_kappa_score(overlapping_cells.iloc[:,0],overlapping_cells.iloc[:,1])
