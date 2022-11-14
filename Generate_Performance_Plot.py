@@ -29,3 +29,5 @@ new_df['Student #'] = new_df['Student #'].map({'Akshita':'Student 1','Jamie':'St
 # Making the mean agreement score bar plot separated by student and whether unscored cells were included or not
 fig2 = px.bar(new_df, x='Student #',y='Agreement with Expert',color = 'Unscored Cells Included?',barmode='group',text_auto=True,title='Agreement Scores for each Student <br><sup>Including Unscored Cells and Ignoring</sup>')
 fig2.write_image(file_path.replace('Student_Performance.csv','Results_figure_mean.png'))
+
+
