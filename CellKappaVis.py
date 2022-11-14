@@ -30,6 +30,7 @@ from dash_extensions.enrich import DashProxy, html, Input, Output, MultiplexerTr
 
 # Reading in images and separating them by rater
 image_dir ='/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/GlomAnnotationsAndCode/'
+output_dir = '/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/Outputs'
 annotators = os.listdir(image_dir)
 
 """
@@ -342,6 +343,11 @@ class CellKappaVis:
                 overlapping_cells = overlapping_cells.dropna()
             else:
                 overlapping_cells = overlapping_cells.fillna('Unscored')
+
+            # hacky way to output overlap dataframes
+            #output_dir = '/mnt/c/Users/Sam/Desktop/GlomAnnotationsAndCode/Outputs/'
+            #if not rater_1==rater_2:
+            #    overlapping_cells.to_csv(output_dir+f'{rater_1}_{rater_2}_{image_name.replace(".tif",".csv")}')
 
             conf_mat = confusion_matrix(overlapping_cells.iloc[:,0],overlapping_cells.iloc[:,1])
             kappa_score = cohen_kappa_score(overlapping_cells.iloc[:,0],overlapping_cells.iloc[:,1])
